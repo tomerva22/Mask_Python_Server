@@ -77,4 +77,6 @@ def detect_mask():
         #cv2.rectangle(im,(x,y-40),(x+w,y),color_dict[label],-1)
         #cv2.putText(im, labels_dict[label], (x, y-10),cv2.FONT_HERSHEY_SIMPLEX,0.8,(255,255,255),2)
 
-    
+
+if __name__ == '__main__':
+    app.run(port=80)
