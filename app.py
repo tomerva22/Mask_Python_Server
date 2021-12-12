@@ -1,26 +1,28 @@
 from flask import Flask, jsonify, request
+from flask.helpers import make_response
+from flask.wrappers import Response
 from flask_cors import CORS
 import cv2
 import os
 import magic
 import numpy as np
 import tensorflow as tf
+import random
 
 app = Flask(__name__)
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
-
+file_num = 0
 
 @app.route('/mask', methods=['POST'])
 def detect_mask():
     data = request.data
     model = tf.keras.models.load_model("mobileNetV2FaceMask.model")
     labels_dict={0:'without_mask',1:'with_mask'}
-    color_dict={0:(0,0,255),1:(0,255,0)}
-    size=4
-    classifier = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-
-    result_file = "newfile"
+    file_num = random.randint(0,10000)
+    print(file_num)
+    result_file = "newfile" + str(file_num)
+    file_num+=1
     with open(result_file, 'wb') as file_handler:
         file_handler.write(data)
 
@@ -46,37 +48,17 @@ def detect_mask():
         print('Not an image? %s' % mime_type)
 
     im=cv2.imread(result_file)
-    #im=cv2.flip(im,1,1) #Flip to act as a mirror
-    
-    # Resize the image to speed up detection
-    mini = cv2.resize(im, (im.shape[1] // size, im.shape[0] // size))
-
-    # detect MultiScale / faces 
-    faces = classifier.detectMultiScale(mini,1.05,5)# you may change params or 
-    #remove them if faces not detected decrease them if u get falses then increase them
- 
-    # Draw rectangles around each face
-    for f in faces:
-        (x, y, w, h) = [v * size for v in f] #Scale the shapesize backup
-        #Save just the rectangle faces in SubRecFaces
-        face_img = im[y:y+h, x:x+w]
-        resized=cv2.resize(face_img,(224,224))
-        normalized=resized/255.0
-        reshaped=np.reshape(normalized,(1,224,224,3))
-        reshaped = np.vstack([reshaped])
-        result=model.predict(reshaped)
-        #print(result)
-        
-        label=np.argmax(result,axis=1)[0]
-
-        # Close all started windows
-        #cv2.destroyAllWindows()
-
-        return labels_dict[label]
-        #cv2.rectangle(im,(x,y),(x+w,y+h),color_dict[label],2)
-        #cv2.rectangle(im,(x,y-40),(x+w,y),color_dict[label],-1)
-        #cv2.putText(im, labels_dict[label], (x, y-10),cv2.FONT_HERSHEY_SIMPLEX,0.8,(255,255,255),2)
+    im=cv2.flip(im,1,1) #Flip to act as a mirror
+    im =  im.reshape(-1, im.shape[0], im.shape[1], im.shape[2])
+    normalized=im/255.0
+    result=model.predict(normalized)
+    label = np.argmax(result,axis=1)[0]
+    print(labels_dict[label])
+    response = make_response(labels_dict[label])
+    os.remove(result_file)
+    print(response)
+    return response
 
 
 if __name__ == '__main__':
-    app.run(port=80)
+    app.run(port=8888)
